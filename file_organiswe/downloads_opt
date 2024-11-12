@@ -1,0 +1,76 @@
+import os
+import shutil
+from pathlib import Path
+from typing import List
+
+def organize_files_by_name_and_extension(
+    directory: str,
+    exclude_files: List[str] = [],
+    exclude_folders: List[str] = [],
+    handle_duplicates: bool = True,
+    recursive: bool = True,
+):
+    for root, dirs, files in os.walk(directory):
+        # Przerywamy rekurencję, jeśli `recursive` jest False
+        if not recursive:
+            dirs[:] = []
+
+        # Pomiń foldery na liście wykluczeń
+        dirs[:] = [d for d in dirs if d not in exclude_folders]
+
+        for filename in files:
+            # Pomiń pliki na liście wykluczeń
+            if filename in exclude_files:
+                continue
+
+            file_path = os.path.join(root, filename)
+            name, extension = os.path.splitext(filename)
+            extension = extension[1:].lower()
+            first_letter = name[0].upper()
+
+            # Tworzenie folderów dla pierwszej litery i rozszerzenia
+            letter_folder = os.path.join(directory, first_letter)
+            extension_folder = os.path.join(letter_folder, extension)
+            os.makedirs(extension_folder, exist_ok=True)
+
+            new_file_path = os.path.join(extension_folder, filename)
+
+            # Obsługa duplikatów plików
+            if handle_duplicates:
+                new_file_path = get_unique_filename(new_file_path)
+
+            # Przenoszenie plików do nowych folderów
+            shutil.move(file_path, new_file_path)
+            print(f"Przeniesiono: {filename} -> {os.path.relpath(new_file_path, directory)}")
+
+    print(f"Zakończono organizację plików w folderze: {directory}")
+
+def get_unique_filename(file_path: str) -> str:
+    path = Path(file_path)
+    name = path.stem
+    extension = path.suffix
+    counter = 1
+
+    # Generowanie unikalnej nazwy pliku
+    new_path = path
+    while new_path.exists():
+        new_name = f"{name} ({counter}){extension}"
+        new_path = path.with_name(new_name)
+        counter += 1
+
+    return str(new_path)
+
+if __name__ == "__main__":
+    folder_path = input("Wprowadź ścieżkę do folderu, który ma zostać zorganizowany: ")
+    exclude_files = input("Wprowadź nazwy plików do pominięcia (oddzielone przecinkami): ").split(",")
+    exclude_folders = input("Wprowadź nazwy folderów do pominięcia (oddzielone przecinkami): ").split(",")
+    handle_duplicates = input("Czy radzić sobie z duplikatami plików? (T/N) ").upper() == "T"
+    recursive = input("Czy przeszukiwać podfoldery? (T/N) ").upper() == "T"
+
+    organize_files_by_name_and_extension(
+        folder_path,
+        exclude_files=[f.strip() for f in exclude_files if f.strip()],
+        exclude_folders=[f.strip() for f in exclude_folders if f.strip()],
+        handle_duplicates=handle_duplicates,
+        recursive=recursive,
+    )
